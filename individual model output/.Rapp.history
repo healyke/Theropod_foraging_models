@@ -1,0 +1,1240 @@
+These are all the inputs to the model. must are put in as default but still no harm in directly expressing#
+est.type <- c("muscle") # from one of c("graeme","hip", "muscle"). these are the different approaches to calulating the t.rex metabolic rate. the two COT are cost of transport types used by Pontzer et al 2009 and are probably better. I have hip here but the muscl one (which is higher) is as good an estimate really.#
+#
+metabolic.type <- c("endo") # from one of c("endo","ecto") unless doing Graemes apporach leave this on endo#
+#walking.speed <- c(2.5) # meters per second. This is now calulated in the function based on mass and the scaling in Pontzer#
+#
+hip.hight <- c(42,100,116,149,264) # in cm.#
+#
+V.musc = c(44.1) #
+#
+#set up the mass range#
+mass <- seq(10,10000,10) # in kg#
+#
+detection.distance <- c(2000) # in meters#
+#
+search.time <- c(0.5) #amount of time searching#
+#
+bone.energy.content <- c(6700000) # in joules/kg#
+#
+flesh.energy.content <- c(7000000)#in joules/kg #
+#
+carcass.mass.density <- c(4.38) # kg/km#
+#
+froude.no = c(0.25) #0.25 is a slow walk 0.5 is the transition into running gait 1 is running.#
+#
+theropod.size.bin <- c(20.6,58.3,1123,5347) #theropod size bins from carbone can include other dino distributions such as dino park#
+#for dino park#
+#for#
+#
+herbivor.size.bin <- c(75,216,700,2500,5000,8500,25000) #herbivour size bins from carbone can include other dino distributions such as dino park#
+#
+assimilation.effeciency <- c(0.80*0.23) # amount of energy through assimilation#
+#
+competition <- c("absent") #whether to include compition or not. currenty very crudly coded as linear increase from 0% at lowest body size to 100% at max body size. "absent" if compitition is not to be included "present" if it is#
+#
+percent.flesh.available <- c(0.5) #how much flesh should be available, 0 if just a bone scavanger.#
+#create vectors of area searched#
+searched <- area.searched(mass = mass, detection.distance = detection.distance, search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000))#
+#
+daily.km2.search <- searched$daily.km2.search#
+walking.speed <- searched$walking.speed#
+#
+#create vectors of energy used#
+pontz.energy <- pontz.energy.exp(mass = mass, walking.speed = walking.speed, est.type = "hip", hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))#
+#
+Tot.daily.energy.consumption.j <- pontz.energy$Tot.daily.energy.consumption.j#
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(0), assimilation.effeciency = c(0.75), competativly.available = c(1), carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+#
+#quick energy balance with set parameters above#
+Energy.balance <-  daily.km2.search*energy.dens.km.j - Tot.daily.energy.consumption.j
+fasting.ability <- function(mass,En.cost.per.day,kfat.energy = c(39.3*1000*1000))#
+	{#
+#
+		#kfat.energy <- 39.3*1000*1000 # this is j/kg of fat reserves#
+		Energy.in.reserves <- kfat.energy*0.075*(body.mass^1.19) #I'm not sure were this scaling equation comes from find it and include reference.#
+		fasting.abilty.days <- Energy.in.reserves/En.cost.per.day#
+		return(data.frame(Energy.in.reserves,fasting.abilty.days))#
+	}
+ched. This scaling is one of the talking points with john.#
+#
+area.searched <- function(mass, detection.distance, search.time =c(0.5), theropod.body.sizes = c(20,210,430,1400,6000),hip.hight <- c(42,100,116,149,264),froude.no = c(0.25))#
+	{#
+#
+							speed.fr <- sqrt(froude.no*(hip.hight/100)*9.81) #hip.hiegth in meters#
+							speed.scal <- glm(log(speed.fr)~log(theropod.body.sizes))#
+							s.slop <- speed.scal$coefficients["log(theropod.body.sizes)"]#
+							s.int <-  exp(speed.scal$coefficients["(Intercept)"])#
+#
+							walking.speed <- (s.int*((mass)^s.slop))#
+#
+							#To get a search rate its given by detaction distance d by v.s in meters^2/second searched#
+							meter.scanned.per.sec <- 2*detection.distance*walking.speed #search rate in meters^squared per second#
+							daily.km2.search <- ((meter.scanned.per.sec*search.time*60*60*24)/(1000^2)) #area (km^2) searched in a day#
+#
+return(data.frame(walking.speed, meter.scanned.per.sec,daily.km2.search))#
+	}
+area.searched <- function(mass, detection.distance, search.time =c(0.5), theropod.body.sizes = c(20,210,430,1400,6000),hip.hight = c(42,100,116,149,264),froude.no = c(0.25))#
+	{#
+#
+							speed.fr <- sqrt(froude.no*(hip.hight/100)*9.81) #hip.hiegth in meters#
+							speed.scal <- glm(log(speed.fr)~log(theropod.body.sizes))#
+							s.slop <- speed.scal$coefficients["log(theropod.body.sizes)"]#
+							s.int <-  exp(speed.scal$coefficients["(Intercept)"])#
+#
+							walking.speed <- (s.int*((mass)^s.slop))#
+#
+							#To get a search rate its given by detaction distance d by v.s in meters^2/second searched#
+							meter.scanned.per.sec <- 2*detection.distance*walking.speed #search rate in meters^squared per second#
+							daily.km2.search <- ((meter.scanned.per.sec*search.time*60*60*24)/(1000^2)) #area (km^2) searched in a day#
+#
+return(data.frame(walking.speed, meter.scanned.per.sec,daily.km2.search))#
+	}
+Using Graems model to calulate energy expenditor#
+gram.energy.exp <- function(mass, walking.speed, metabolic.type = c("ecto","endo"), search.time = c(0.5))#
+{#
+	if(metabolic.type == "ecto")#
+		{#
+		resting.metabolic.rate <- 0.11*(mass^0.76) #baesed on reptiles#
+		Searching.energy.cost.W <- 10.3*walking.speed*(mass^0.64)#
+#
+		Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+		Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+		}#
+		else {#
+			if(metabolic.type == "endo")#
+				{#
+					resting.metabolic.rate <- 4.12*(mass^0.69) #Mammals from White et al 2009 (uses PGLS)#
+#
+					Searching.energy.cost.W <- 10.7*walking.speed*(mass^0.68)#
+#
+					Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+					Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+				}#
+			}#
+return(data.frame(resting.metabolic.rate, Searching.energy.cost.W, Tot.daily.energy.consumption.j))#
+}#
+#Using pontzers model to calulate energy expenditure#
+#
+pontz.energy.exp <- function(mass, walking.speed, est.type = c("hip","muscle"), hip.hight = c(264), V.musc = c(44.1), search.time = c(0.5))#
+{#
+	if(est.type == "hip")#
+		{#
+		resting.metabolic.rate <- 4.12*(mass^0.69) #baesed on mammals#
+		#need an equation of mass hip higth scaling.#
+		cot.hip.scal <- glm(log(hip.hight)~log(theropod.body.sizes))#
+							hip.slop <- cot.hip.scal$coefficients["log(theropod.body.sizes)"]#
+							hip.int <-  exp(cot.hip.scal$coefficients["(Intercept)"])#
+#
+							cost.hip <- (hip.int*((mass)^hip.slop))#
+		cost.of.transport <-  90.284*(cost.hip^(-0.77)) #
+		Searching.energy.cost.W <-  (cost.of.transport*mass)*walking.speed#
+#
+		Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+		Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+		}#
+		else {#
+			if(est.type == "muscle")#
+				{#
+					resting.metabolic.rate <- 4.12*(mass^0.69) #Mammals from White et al 2009 (uses PGLS)#
+					cost.of.transport <- (0.0029*(V.musc) + 0.0598)*20.1#
+					Searching.energy.cost.W <- (cost.of.transport*mass)*walking.speed #cost of whole animal to search in Watts#
+					Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+					Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+				}#
+			}#
+return(data.frame(resting.metabolic.rate, Searching.energy.cost.W, Tot.daily.energy.consumption.j))#
+}#
+#function to calulate the enrgy available in the envirnment.#
+#
+energy.available <- function(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(0), assimilation.effeciency = c(0.75), competativly.available = c(1), carcass.mass.density = c(4.38), number.day.carcass.available = c(7))#
+		{#
+		bone.mass.herbivors <-  0.065*(herbivor.size.bin^1.09)# from mammal scaling #
+		flesh.mass.herbivours <- herbivor.size.bin - bone.mass.herbivors#
+		bone.energy.herb <-  bone.mass.herbivors*bone.energy.content #energy in each size bim from bones#
+		flesh.energy.herb <-  flesh.mass.herbivours*flesh.energy.content #energy in each size bim from flesh#
+		carcass.energy.avail <- bone.energy.herb + flesh.energy.herb*percent.flesh.available #energy in each size bim from complet carcass#
+		per.individual.carcass.energy.avail <- carcass.energy.avail*assimilation.effeciency*competativly.available#
+		carcass.energy.avail.kg <- per.individual.carcass.energy.avail/herbivor.size.bin #energy per kg #
+#
+		energy.dens.km.j <- sum((carcass.mass.density*number.day.carcass.available)*(carcass.energy.avail.kg/length(herbivor.size.bin))) #density of energy avalable to t.rex uniformly spread.#
+		return(data.frame(energy.dens.km.j))#
+		}
+These are all the inputs to the model. must are put in as default but still no harm in directly expressing#
+est.type <- c("muscle") # from one of c("graeme","hip", "muscle"). these are the different approaches to calulating the t.rex metabolic rate. the two COT are cost of transport types used by Pontzer et al 2009 and are probably better. I have hip here but the muscl one (which is higher) is as good an estimate really.#
+#
+metabolic.type <- c("endo") # from one of c("endo","ecto") unless doing Graemes apporach leave this on endo#
+#walking.speed <- c(2.5) # meters per second. This is now calulated in the function based on mass and the scaling in Pontzer#
+#
+hip.hight <- c(42,100,116,149,264) # in cm.#
+#
+V.musc = c(44.1) #
+#
+#set up the mass range#
+mass <- seq(10,10000,10) # in kg#
+#
+detection.distance <- c(2000) # in meters#
+#
+search.time <- c(0.5) #amount of time searching#
+#
+bone.energy.content <- c(6700000) # in joules/kg#
+#
+flesh.energy.content <- c(7000000)#in joules/kg #
+#
+carcass.mass.density <- c(4.38) # kg/km#
+#
+froude.no = c(0.25) #0.25 is a slow walk 0.5 is the transition into running gait 1 is running.#
+#
+theropod.size.bin <- c(20.6,58.3,1123,5347) #theropod size bins from carbone can include other dino distributions such as dino park#
+#for dino park#
+#for#
+#
+herbivor.size.bin <- c(75,216,700,2500,5000,8500,25000) #herbivour size bins from carbone can include other dino distributions such as dino park#
+#
+assimilation.effeciency <- c(0.80*0.23) # amount of energy through assimilation#
+#
+competition <- c("absent") #whether to include compition or not. currenty very crudly coded as linear increase from 0% at lowest body size to 100% at max body size. "absent" if compitition is not to be included "present" if it is
+percent.flesh.available <- c(1) #how much flesh should be available, 0 if just a bone scavanger.
+create vectors of area searched#
+searched <- area.searched(mass = mass, detection.distance = detection.distance, search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000))#
+#
+daily.km2.search <- searched$daily.km2.search#
+walking.speed <- searched$walking.speed#
+#
+#create vectors of energy used#
+pontz.energy <- pontz.energy.exp(mass = mass, walking.speed = walking.speed, est.type = "hip", hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))#
+#
+Tot.daily.energy.consumption.j <- pontz.energy$Tot.daily.energy.consumption.j#
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(0), assimilation.effeciency = c(0.75), competativly.available = c(1), carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+#
+#quick energy balance with set parameters above#
+Energy.balance <-  daily.km2.search*energy.dens.km.j - Tot.daily.energy.consumption.j#
+############----------------------------------###########################
+############Free parameter models using lapply###########################
+############----------------------------------###########################
+#
+############---------------Scaling between max.size and carcass.density------------###########################
+###Set up the terpod dependent varibles#
+#
+searched <- area.searched(mass = mass, detection.distance = c(500), search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000))#
+daily.km2.search <- searched$daily.km2.search#
+walking.speed <- searched$walking.speed#
+#
+#create vectors of energy used#
+pontz.energy <- pontz.energy.exp(mass = mass, walking.speed = walking.speed, est.type = est.type, hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))#
+#
+Tot.daily.energy.consumption.j <- pontz.energy$Tot.daily.energy.consumption.j#
+#Set up lapply across a series if envirnmental densities to give availble energy.#
+#
+carcass.mass.density <- c(seq(0,50,0.5))#
+#
+avail.energy <- lapply(carcass.mass.density, function(carcass.mass.density) energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(10), assimilation.effeciency = c(0.75), competativly.available = c(1), carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7)) )#
+#
+energy.dens.km.j <- avail.energy[]#
+#
+Energy.balance <- matrix(0, nrow = c(length(daily.km2.search)), ncol = c(length(carcass.mass.density)))#
+for(i in 1:(length(carcass.mass.density))){#
+Energy.balance[,i] <-  daily.km2.search*(as.numeric(energy.dens.km.j[[i]][])) - Tot.daily.energy.consumption.j#
+}#
+#
+#to calulate the maximum inflection #
+energy.output <- data.frame(Energy.balance,mass)#
+#
+opt.size <- matrix(0, nrow = c(length(energy.output[1,])-1))#
+for(i in 1:(length(energy.output[1,])-1)){#
+opt.size[i] <- energy.output[(max(energy.output[,i]) == energy.output[,i]),"mass"]#
+}#
+#
+#plot these out#
+plot(opt.size~carcass.mass.density, col = "white", xlab= "Density of carcasses (kg/km2)", ylab = "Optimum body size (kg)")#
+#
+lines(opt.size~carcass.mass.density, col = "red", lwd = "2")
+Set up lapply across detection distances#
+detection.distance <- c(seq(0,2000,100))#
+carcass.mass.density <- c(4.38) # kg/km#
+searched <- lapply(detection.distance, function(detection.distance) area.searched(mass = mass, detection.distance = detection.distance, search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000)))#
+#
+walking.speed <-  data.frame(searched[[1]]["walking.speed"])#
+#
+daily.km2.search <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+daily.km2.search[i] <-  searched[[i]]["daily.km2.search"]#
+}#
+#
+###Set up the terpod dependent varibles#
+#
+#create vectors of energy used#
+pontz.energy <- pontz.energy.exp(mass = mass, walking.speed = walking.speed, est.type = est.type, hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))#
+#
+#the output.is very annoying here as the names are not changing#
+Tot.daily.energy.consumption.j <- pontz.energy$walking.speed.1#
+#
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(0), assimilation.effeciency = c(0.75), competativly.available = c(1), carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+Energy.balance <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+Energy.balance[,i] <-  daily.km2.search[[i]][]*energy.dens.km.j - Tot.daily.energy.consumption.j#
+}#
+#to calulate the maximum inflection #
+energy.output <- data.frame(Energy.balance,mass)#
+#
+opt.size <- matrix(0, nrow = c(length(energy.output[1,])-1))#
+for(i in 1:(length(energy.output[1,])-1)){#
+opt.size[i] <- energy.output[(max(energy.output[,i]) == energy.output[,i]),"mass"]#
+}#
+#
+#plot these out#
+plot(opt.size~ detection.distance, col = "white", xlab= "Detection distance (m)", ylab = "Optimum body size (kg)")#
+#
+lines(opt.size~ detection.distance, col = "red", lwd = "2")
+est.type
+est.type <- c("hip") # from one of c("graeme","hip", "muscle"). these are the different approaches to calulating the t.rex metabolic rate. the two COT are cost of transport types used by Pontzer et al 2009 and are probably better. I have hip here but the muscl one (which is higher) is as good an estimate really.
+These are all the inputs to the model. must are put in as default but still no harm in directly expressing#
+est.type <- c("hip") # from one of c("graeme","hip", "muscle"). these are the different approaches to calulating the t.rex metabolic rate. the two COT are cost of transport types used by Pontzer et al 2009 and are probably better. I have hip here but the muscl one (which is higher) is as good an estimate really.#
+#
+metabolic.type <- c("endo") # from one of c("endo","ecto") unless doing Graemes apporach leave this on endo#
+#walking.speed <- c(2.5) # meters per second. This is now calulated in the function based on mass and the scaling in Pontzer#
+#
+hip.hight <- c(42,100,116,149,264) # in cm.#
+#
+V.musc = c(44.1) #
+#
+#set up the mass range#
+mass <- seq(10,10000,10) # in kg#
+#
+detection.distance <- c(2000) # in meters#
+#
+search.time <- c(0.5) #amount of time searching#
+#
+bone.energy.content <- c(6700000) # in joules/kg#
+#
+flesh.energy.content <- c(7000000)#in joules/kg #
+#
+carcass.mass.density <- c(4.38) # kg/km#
+#
+froude.no = c(0.25) #0.25 is a slow walk 0.5 is the transition into running gait 1 is running.#
+#
+theropod.size.bin <- c(20.6,58.3,1123,5347) #theropod size bins from carbone can include other dino distributions such as dino park#
+#for dino park#
+#for#
+#
+herbivor.size.bin <- c(75,216,700,2500,5000,8500,25000) #herbivour size bins from carbone can include other dino distributions such as dino park#
+#
+assimilation.effeciency <- c(0.80*0.23) # amount of energy through assimilation#
+#
+competition <- c("absent") #whether to include compition or not. currenty very crudly coded as linear increase from 0% at lowest body size to 100% at max body size. "absent" if compitition is not to be included "present" if it is#
+#
+percent.flesh.available <- c(0.5) #how much flesh should be available, 0 if just a bone scavanger.#
+#create vectors of area searched#
+searched <- area.searched(mass = mass, detection.distance = detection.distance, search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000))#
+#
+daily.km2.search <- searched$daily.km2.search#
+walking.speed <- searched$walking.speed#
+#
+#create vectors of energy used#
+pontz.energy <- pontz.energy.exp(mass = mass, walking.speed = walking.speed, est.type = "hip", hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))#
+#
+Tot.daily.energy.consumption.j <- pontz.energy$Tot.daily.energy.consumption.j#
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(0), assimilation.effeciency = c(0.75), competativly.available = c(1), carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+#
+#quick energy balance with set parameters above#
+Energy.balance <-  daily.km2.search*energy.dens.km.j - Tot.daily.energy.consumption.j#
+############----------------------------------###########################
+############Free parameter models using lapply###########################
+############----------------------------------###########################
+#
+############---------------Scaling between max.size and carcass.density------------###########################
+###Set up the terpod dependent varibles#
+#
+searched <- area.searched(mass = mass, detection.distance = c(500), search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000))#
+daily.km2.search <- searched$daily.km2.search#
+walking.speed <- searched$walking.speed#
+#
+#create vectors of energy used#
+pontz.energy <- pontz.energy.exp(mass = mass, walking.speed = walking.speed, est.type = est.type, hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))#
+#
+Tot.daily.energy.consumption.j <- pontz.energy$Tot.daily.energy.consumption.j#
+#Set up lapply across a series if envirnmental densities to give availble energy.#
+#
+carcass.mass.density <- c(seq(0,50,0.5))#
+#
+avail.energy <- lapply(carcass.mass.density, function(carcass.mass.density) energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(10), assimilation.effeciency = c(0.75), competativly.available = c(1), carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7)) )#
+#
+energy.dens.km.j <- avail.energy[]#
+#
+Energy.balance <- matrix(0, nrow = c(length(daily.km2.search)), ncol = c(length(carcass.mass.density)))#
+for(i in 1:(length(carcass.mass.density))){#
+Energy.balance[,i] <-  daily.km2.search*(as.numeric(energy.dens.km.j[[i]][])) - Tot.daily.energy.consumption.j#
+}#
+#
+#to calulate the maximum inflection #
+energy.output <- data.frame(Energy.balance,mass)#
+#
+opt.size <- matrix(0, nrow = c(length(energy.output[1,])-1))#
+for(i in 1:(length(energy.output[1,])-1)){#
+opt.size[i] <- energy.output[(max(energy.output[,i]) == energy.output[,i]),"mass"]#
+}#
+#
+#plot these out#
+plot(opt.size~carcass.mass.density, col = "white", xlab= "Density of carcasses (kg/km2)", ylab = "Optimum body size (kg)")#
+#
+lines(opt.size~carcass.mass.density, col = "red", lwd = "2")#
+############---------------Scaling between max.size and detection distance------------###########################
+#Set up lapply across detection distances#
+detection.distance <- c(seq(0,2000,100))#
+carcass.mass.density <- c(4.38) # kg/km#
+searched <- lapply(detection.distance, function(detection.distance) area.searched(mass = mass, detection.distance = detection.distance, search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000)))#
+#
+walking.speed <-  data.frame(searched[[1]]["walking.speed"])#
+#
+daily.km2.search <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+daily.km2.search[i] <-  searched[[i]]["daily.km2.search"]#
+}#
+#
+###Set up the terpod dependent varibles#
+#
+#create vectors of energy used#
+pontz.energy <- pontz.energy.exp(mass = mass, walking.speed = walking.speed, est.type = est.type, hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))#
+#
+#the output.is very annoying here as the names are not changing#
+Tot.daily.energy.consumption.j <- pontz.energy$walking.speed.1#
+#
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(0), assimilation.effeciency = c(0.75), competativly.available = c(1), carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+Energy.balance <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+Energy.balance[,i] <-  daily.km2.search[[i]][]*energy.dens.km.j - Tot.daily.energy.consumption.j#
+}#
+#to calulate the maximum inflection #
+energy.output <- data.frame(Energy.balance,mass)#
+#
+opt.size <- matrix(0, nrow = c(length(energy.output[1,])-1))#
+for(i in 1:(length(energy.output[1,])-1)){#
+opt.size[i] <- energy.output[(max(energy.output[,i]) == energy.output[,i]),"mass"]#
+}#
+#
+#plot these out#
+plot(opt.size~ detection.distance, col = "white", xlab= "Detection distance (m)", ylab = "Optimum body size (kg)")#
+#
+lines(opt.size~ detection.distance, col = "red", lwd = "2")
+These are all the inputs to the model. must are put in as default but still no harm in directly expressing#
+est.type <- c("hip") # from one of c("graeme","hip", "muscle"). these are the different approaches to calulating the t.rex metabolic rate. the two COT are cost of transport types used by Pontzer et al 2009 and are probably better. I have hip here but the muscl one (which is higher) is as good an estimate really.#
+#
+metabolic.type <- c("endo") # from one of c("endo","ecto") unless doing Graemes apporach leave this on endo#
+#walking.speed <- c(2.5) # meters per second. This is now calulated in the function based on mass and the scaling in Pontzer#
+#
+hip.hight <- c(42,100,116,149,264) # in cm.#
+#
+V.musc = c(44.1) #
+#
+#set up the mass range#
+mass <- seq(10,10000,10) # in kg#
+#
+detection.distance <- c(2000) # in meters#
+#
+search.time <- c(0.5) #amount of time searching#
+#
+bone.energy.content <- c(6700000) # in joules/kg#
+#
+flesh.energy.content <- c(7000000)#in joules/kg #
+#
+carcass.mass.density <- c(4.38) # kg/km#
+#
+froude.no = c(0.25) #0.25 is a slow walk 0.5 is the transition into running gait 1 is running.#
+#
+theropod.size.bin <- c(20.6,58.3,1123,5347) #theropod size bins from carbone can include other dino distributions such as dino park#
+#for dino park#
+#for#
+#
+herbivor.size.bin <- c(75,216,700,2500,5000,8500,25000) #herbivour size bins from carbone can include other dino distributions such as dino park#
+#
+assimilation.effeciency <- c(0.80*0.23) # amount of energy through assimilation#
+#
+competition <- c("absent") #whether to include compition or not. currenty very crudly coded as linear increase from 0% at lowest body size to 100% at max body size. "absent" if compitition is not to be included "present" if it is#
+#
+percent.flesh.available <- c(1) #how much flesh should be available, 0 if just a bone scavanger.#
+#create vectors of area searched#
+searched <- area.searched(mass = mass, detection.distance = detection.distance, search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000))#
+#
+daily.km2.search <- searched$daily.km2.search#
+walking.speed <- searched$walking.speed#
+#
+#create vectors of energy used#
+pontz.energy <- pontz.energy.exp(mass = mass, walking.speed = walking.speed, est.type = "hip", hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))#
+#
+Tot.daily.energy.consumption.j <- pontz.energy$Tot.daily.energy.consumption.j#
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(0), assimilation.effeciency = c(0.75), competativly.available = c(1), carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+#
+#quick energy balance with set parameters above#
+Energy.balance <-  daily.km2.search*energy.dens.km.j - Tot.daily.energy.consumption.j
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(0), assimilation.effeciency = assimilation.effeciency , competativly.available = c(1), carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+#
+#quick energy balance with set parameters above#
+Energy.balance <-  daily.km2.search*energy.dens.km.j - Tot.daily.energy.consumption.j
+plot(Energy.balance~mass)
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(1), assimilation.effeciency = assimilation.effeciency , competativly.available = c(1), carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+#
+#quick energy balance with set parameters above#
+Energy.balance <-  daily.km2.search*energy.dens.km.j - Tot.daily.energy.consumption.j
+plot(Energy.balance~mass)
+These are all the inputs to the model. must are put in as default but still no harm in directly expressing#
+est.type <- c("hip") # from one of c("graeme","hip", "muscle"). these are the different approaches to calulating the t.rex metabolic rate. the two COT are cost of transport types used by Pontzer et al 2009 and are probably better. I have hip here but the muscl one (which is higher) is as good an estimate really.#
+#
+metabolic.type <- c("endo") # from one of c("endo","ecto") unless doing Graemes apporach leave this on endo#
+#walking.speed <- c(2.5) # meters per second. This is now calulated in the function based on mass and the scaling in Pontzer#
+#
+hip.hight <- c(42,100,116,149,264) # in cm.#
+#
+V.musc = c(44.1) #
+#
+#set up the mass range#
+mass <- seq(10,10000,10) # in kg#
+#
+detection.distance <- c(500) # in meters#
+#
+search.time <- c(0.5) #amount of time searching#
+#
+bone.energy.content <- c(6700000) # in joules/kg#
+#
+flesh.energy.content <- c(7000000)#in joules/kg #
+#
+carcass.mass.density <- c(4.38) # kg/km#
+#
+froude.no = c(0.25) #0.25 is a slow walk 0.5 is the transition into running gait 1 is running.#
+#
+theropod.size.bin <- c(20.6,58.3,1123,5347) #theropod size bins from carbone can include other dino distributions such as dino park#
+#for dino park#
+#for#
+#
+herbivor.size.bin <- c(75,216,700,2500,5000,8500,25000) #herbivour size bins from carbone can include other dino distributions such as dino park#
+#
+assimilation.effeciency <- c(0.80*0.23) # amount of energy through assimilation#
+#
+competition <- c("absent") #whether to include compition or not. currenty very crudly coded as linear increase from 0% at lowest body size to 100% at max body size. "absent" if compitition is not to be included "present" if it is#
+#
+percent.flesh.available <- c(1) #how much flesh should be available, 0 if just a bone scavanger.
+create vectors of area searched#
+searched <- area.searched(mass = mass, detection.distance = detection.distance, search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000))#
+#
+daily.km2.search <- searched$daily.km2.search#
+walking.speed <- searched$walking.speed#
+#
+#create vectors of energy used#
+pontz.energy <- pontz.energy.exp(mass = mass, walking.speed = walking.speed, est.type = "hip", hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))#
+#
+Tot.daily.energy.consumption.j <- pontz.energy$Tot.daily.energy.consumption.j
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = percent.flesh.available, assimilation.effeciency = assimilation.effeciency , competativly.available = competativly.available, carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+#
+#quick energy balance with set parameters above#
+Energy.balance <-  daily.km2.search*energy.dens.km.j - Tot.daily.energy.consumption.j
+competativly.available <- c(1) #how much flesh should be available due to competition.
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = percent.flesh.available, assimilation.effeciency = assimilation.effeciency , competativly.available = competativly.available, carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+#
+#quick energy balance with set parameters above#
+Energy.balance <-  daily.km2.search*energy.dens.km.j - Tot.daily.energy.consumption.j
+plot(Energy.balance~mass)
+percent.flesh.available <- c(0) #how much flesh should be available, 0 if just a bone scavanger.
+create vectors of area searched#
+searched <- area.searched(mass = mass, detection.distance = detection.distance, search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000))#
+#
+daily.km2.search <- searched$daily.km2.search#
+walking.speed <- searched$walking.speed#
+#
+#create vectors of energy used#
+pontz.energy <- pontz.energy.exp(mass = mass, walking.speed = walking.speed, est.type = "hip", hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))#
+#
+Tot.daily.energy.consumption.j <- pontz.energy$Tot.daily.energy.consumption.j#
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = percent.flesh.available, assimilation.effeciency = assimilation.effeciency , competativly.available = competativly.available, carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+#
+#quick energy balance with set parameters above#
+Energy.balance <-  daily.km2.search*energy.dens.km.j - Tot.daily.energy.consumption.j
+plot(Energy.balance~mass)
+percent.flesh.available <- c(0) #how much flesh should be available, 0 if just a bone scavanger.
+Set up lapply across detection distances#
+detection.distance <- c(seq(0,2000,100))#
+carcass.mass.density <- c(4.38) # kg/km#
+searched <- lapply(detection.distance, function(detection.distance) area.searched(mass = mass, detection.distance = detection.distance, search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000)))#
+#
+walking.speed <-  data.frame(searched[[1]]["walking.speed"])#
+#
+daily.km2.search <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+daily.km2.search[i] <-  searched[[i]]["daily.km2.search"]#
+}#
+#
+###Set up the terpod dependent varibles#
+#
+#create vectors of energy used#
+pontz.energy <- pontz.energy.exp(mass = mass, walking.speed = walking.speed, est.type = est.type, hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))#
+#
+#the output.is very annoying here as the names are not changing#
+Tot.daily.energy.consumption.j <- pontz.energy$walking.speed.1#
+#
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(0), assimilation.effeciency = assimilation.effeciency, competativly.available = competativly.available, carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+Energy.balance <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+Energy.balance[,i] <-  daily.km2.search[[i]][]*energy.dens.km.j - Tot.daily.energy.consumption.j#
+}#
+#to calulate the maximum inflection #
+energy.output <- data.frame(Energy.balance,mass)#
+#
+opt.size <- matrix(0, nrow = c(length(energy.output[1,])-1))#
+for(i in 1:(length(energy.output[1,])-1)){#
+opt.size[i] <- energy.output[(max(energy.output[,i]) == energy.output[,i]),"mass"]#
+}#
+#
+#plot these out#
+plot(opt.size~ detection.distance, col = "white", xlab= "Detection distance (m)", ylab = "Optimum body size (kg)")#
+#
+lines(opt.size~ detection.distance, col = "red", lwd = "2")
+percent.flesh.available <- c(0) #how much flesh should be available, 0 if just a bone scavanger.#
+competativly.available <- c(1) #how much flesh should be available due to competition.
+Set up lapply across detection distances#
+detection.distance <- c(seq(0,2000,100))#
+carcass.mass.density <- c(4.38) # kg/km#
+searched <- lapply(detection.distance, function(detection.distance) area.searched(mass = mass, detection.distance = detection.distance, search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000)))#
+#
+walking.speed <-  data.frame(searched[[1]]["walking.speed"])#
+#
+daily.km2.search <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+daily.km2.search[i] <-  searched[[i]]["daily.km2.search"]#
+}#
+#
+###Set up the terpod dependent varibles#
+#
+#create vectors of energy used#
+pontz.energy <- pontz.energy.exp(mass = mass, walking.speed = walking.speed, est.type = est.type, hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))#
+#
+#the output.is very annoying here as the names are not changing#
+Tot.daily.energy.consumption.j <- pontz.energy$walking.speed.1#
+#
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(0), assimilation.effeciency = assimilation.effeciency, competativly.available = competativly.available, carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+Energy.balance <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+Energy.balance[,i] <-  daily.km2.search[[i]][]*energy.dens.km.j - Tot.daily.energy.consumption.j#
+}#
+#to calulate the maximum inflection #
+energy.output <- data.frame(Energy.balance,mass)#
+#
+opt.size <- matrix(0, nrow = c(length(energy.output[1,])-1))#
+for(i in 1:(length(energy.output[1,])-1)){#
+opt.size[i] <- energy.output[(max(energy.output[,i]) == energy.output[,i]),"mass"]#
+}#
+#
+#plot these out#
+plot(opt.size~ detection.distance, col = "white", xlab= "Detection distance (m)", ylab = "Optimum body size (kg)")#
+#
+lines(opt.size~ detection.distance, col = "red", lwd = "2")
+percent.flesh.available <- c(1) #how much flesh should be available, 0 if just a bone scavanger.#
+competativly.available <- c(1) #how much flesh should be available due to competition.
+Set up lapply across detection distances#
+detection.distance <- c(seq(0,2000,100))#
+carcass.mass.density <- c(4.38) # kg/km#
+searched <- lapply(detection.distance, function(detection.distance) area.searched(mass = mass, detection.distance = detection.distance, search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000)))#
+#
+walking.speed <-  data.frame(searched[[1]]["walking.speed"])#
+#
+daily.km2.search <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+daily.km2.search[i] <-  searched[[i]]["daily.km2.search"]#
+}#
+#
+###Set up the terpod dependent varibles#
+#
+#create vectors of energy used#
+pontz.energy <- pontz.energy.exp(mass = mass, walking.speed = walking.speed, est.type = est.type, hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))#
+#
+#the output.is very annoying here as the names are not changing#
+Tot.daily.energy.consumption.j <- pontz.energy$walking.speed.1#
+#
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(0), assimilation.effeciency = assimilation.effeciency, competativly.available = competativly.available, carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+Energy.balance <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+Energy.balance[,i] <-  daily.km2.search[[i]][]*energy.dens.km.j - Tot.daily.energy.consumption.j#
+}#
+#to calulate the maximum inflection #
+energy.output <- data.frame(Energy.balance,mass)#
+#
+opt.size <- matrix(0, nrow = c(length(energy.output[1,])-1))#
+for(i in 1:(length(energy.output[1,])-1)){#
+opt.size[i] <- energy.output[(max(energy.output[,i]) == energy.output[,i]),"mass"]#
+}#
+#
+#plot these out#
+plot(opt.size~ detection.distance, col = "white", xlab= "Detection distance (m)", ylab = "Optimum body size (kg)")#
+#
+lines(opt.size~ detection.distance, col = "red", lwd = "2")
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = percent.flesh.available, assimilation.effeciency = assimilation.effeciency, competativly.available = competativly.available, carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+Energy.balance <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+Energy.balance[,i] <-  daily.km2.search[[i]][]*energy.dens.km.j - Tot.daily.energy.consumption.j#
+}#
+#to calulate the maximum inflection #
+energy.output <- data.frame(Energy.balance,mass)#
+#
+opt.size <- matrix(0, nrow = c(length(energy.output[1,])-1))#
+for(i in 1:(length(energy.output[1,])-1)){#
+opt.size[i] <- energy.output[(max(energy.output[,i]) == energy.output[,i]),"mass"]#
+}#
+#
+#plot these out#
+plot(opt.size~ detection.distance, col = "white", xlab= "Detection distance (m)", ylab = "Optimum body size (kg)")#
+#
+lines(opt.size~ detection.distance, col = "red", lwd = "2")
+percent.flesh.available <- c(0) #how much flesh should be available, 0 if just a bone scavanger.#
+competativly.available <- c(1) #how much flesh should be available due to competition.
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = percent.flesh.available, assimilation.effeciency = assimilation.effeciency, competativly.available = competativly.available, carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+Energy.balance <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+Energy.balance[,i] <-  daily.km2.search[[i]][]*energy.dens.km.j - Tot.daily.energy.consumption.j#
+}#
+#to calulate the maximum inflection #
+energy.output <- data.frame(Energy.balance,mass)#
+#
+opt.size <- matrix(0, nrow = c(length(energy.output[1,])-1))#
+for(i in 1:(length(energy.output[1,])-1)){#
+opt.size[i] <- energy.output[(max(energy.output[,i]) == energy.output[,i]),"mass"]#
+}#
+#
+#plot these out#
+plot(opt.size~ detection.distance, col = "white", xlab= "Detection distance (m)", ylab = "Optimum body size (kg)")#
+#
+lines(opt.size~ detection.distance, col = "red", lwd = "2")
+percent.flesh.available <- c(1) #how much flesh should be available, 0 if just a bone scavanger.#
+competativly.available <- c(1) #how much flesh should be available due to competition.
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = percent.flesh.available, assimilation.effeciency = assimilation.effeciency, competativly.available = competativly.available, carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+Energy.balance <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+Energy.balance[,i] <-  daily.km2.search[[i]][]*energy.dens.km.j - Tot.daily.energy.consumption.j#
+}#
+#to calulate the maximum inflection #
+energy.output <- data.frame(Energy.balance,mass)#
+#
+opt.size <- matrix(0, nrow = c(length(energy.output[1,])-1))#
+for(i in 1:(length(energy.output[1,])-1)){#
+opt.size[i] <- energy.output[(max(energy.output[,i]) == energy.output[,i]),"mass"]#
+}#
+#
+#plot these out#
+plot(opt.size~ detection.distance, col = "white", xlab= "Detection distance (m)", ylab = "Optimum body size (kg)")#
+#
+lines(opt.size~ detection.distance, col = "red", lwd = "2")
+percent.flesh.available <- c(0.5) #how much flesh should be available, 0 if just a bone scavanger.#
+competativly.available <- c(1) #how much flesh should be available due to competition.
+avail.energy <- energy.available(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = percent.flesh.available, assimilation.effeciency = assimilation.effeciency, competativly.available = competativly.available, carcass.mass.density = carcass.mass.density, number.day.carcass.available = c(7))#
+#
+energy.dens.km.j <- avail.energy$energy.dens.km.j#
+Energy.balance <- matrix(0, nrow = c(length(mass)), ncol = c(length(detection.distance)))#
+for(i in 1:(length(detection.distance))){#
+Energy.balance[,i] <-  daily.km2.search[[i]][]*energy.dens.km.j - Tot.daily.energy.consumption.j#
+}#
+#to calulate the maximum inflection #
+energy.output <- data.frame(Energy.balance,mass)#
+#
+opt.size <- matrix(0, nrow = c(length(energy.output[1,])-1))#
+for(i in 1:(length(energy.output[1,])-1)){#
+opt.size[i] <- energy.output[(max(energy.output[,i]) == energy.output[,i]),"mass"]#
+}#
+#
+#plot these out#
+plot(opt.size~ detection.distance, col = "white", xlab= "Detection distance (m)", ylab = "Optimum body size (kg)")#
+#
+lines(opt.size~ detection.distance, col = "red", lwd = "2")
+siz.gt <- c(20.6,58.3,1123,5347)
+for body size classes based on scaling#
+e <- 1.97 #constant for theropods#
+c <- 100 #constant for herbivors#
+D <- -0.75#allometric scaling for herbivours#
+f <- -0.88#allometric scaling for theropods
+Nt <- e*(siz.gt^f)
+Nt
+Nt <- e*(100^f)
+Nt
+Nt <- e*(200^f)
+Nt <- e*(500^f)
+Nt
+Nt <- e*(1000^f)
+Nt
+Nt <- e*(2000^f)
+Nt
+ff <- c(100,200,500,1000,2000,3000,4000,5000,6000,7000,8000,9000,10000)
+ff
+Nt <- e*(ff^f)
+Nt
+mass <- c(100,200,500,1000,2000,3000,4000,5000,6000,7000,8000,9000,10000)
+area.searched(mass)
+detection.distance
+detection.distance <- 200
+area.searched <- function(mass, detection.distance, search.time =c(0.5), theropod.body.sizes = c(20,210,430,1400,6000),hip.hight = c(42,100,116,149,264),froude.no = c(0.25))#
+	{#
+#
+							walking.speed <- sqrt(froude.no*(hip.hight/100)*9.81) #hip.hiegth in meters#
+							speed.scal <- glm(log(speed.fr)~log(theropod.body.sizes))#
+							s.slop <- speed.scal$coefficients["log(theropod.body.sizes)"]#
+							s.int <-  exp(speed.scal$coefficients["(Intercept)"])#
+#
+							walking.speed <- (s.int*((mass)^s.slop))#
+#
+							#To get a search rate its given by detaction distance d by v.s in meters^2/second searched#
+							meter.scanned.per.sec <- 2*detection.distance*walking.speed #search rate in meters^squared per second#
+							daily.km2.search <- ((meter.scanned.per.sec*search.time*60*60*24)/(1000^2)) #area (km^2) searched in a day#
+#
+return(data.frame(walking.speed, meter.scanned.per.sec,daily.km2.search))#
+	}
+area.searched(mass, detection.distance= detection.distance)
+aa <- area.searched(mass, detection.distance= detection.distance)
+aa
+dattt <- data.frame(aa,mass)
+dattt
+hip.hight
+pontz.energy.exp <- function(mass, walking.speed, est.type = c("hip"), hip.hight = hip.hight, search.time = c(0.5))
+)
+pontz.energy.exp(mass, walking.speed, est.type = c("hip"), hip.hight = hip.hight, search.time = c(0.5))
+mass
+walking.speed
+dattt
+dattt$walking.speed
+pontz.energy.exp(mass, walking.speed = dattt$walking.speed, est.type = c("hip"), hip.hight = hip.hight, search.time = c(0.5))
+enn <- pontz.energy.exp(mass, walking.speed = dattt$walking.speed, est.type = c("hip"), hip.hight = hip.hight, search.time = c(0.5))
+datt
+dattt
+0.138*2500
+0.055*2500
+0.041*2500
+9*24
+9*12
+9*8
+size.j <- c(200,1000,2000,6000,10000)
+en <- c(6232.258065, 48741.00645, 98670.89032, 183747.7419, 293512.0516)
+plot(en~ size.j)
+plot(en~ log(size.j))
+plot(en~ size.j)
+rm(list=ls())#
+graphics.off()#
+#
+ind_data <- read.csv("gut_no_comp_master_14_june.csv",sep=",", header = T)
+ind_data <- read.csv("full_gut_full_comp_master.csv",sep=",", header = T)
+ind_data <- read.csv("full_gut_full_comp_master",sep=",", header = T)
+ind_data <- read.csv("full_gut_full_comp_master.csv",sep=",", header = T)
+ind_data
+enr_day <- matrix(0, nrow = c(10) , ncol = length(ind_data[1,]))
+enr_day
+ind_data[ind_data$ind == i, "energy"]
+ind_data[ind_data$ind == 1, "energy"]
+ind_data[ind_data$ind == 2, "energy"]
+ind_data$ind
+levels(ind_data$ind)
+length(levels(as.factor(ind_data$ind)))
+length(levels(as.factor(ind_data$mass)))
+(levels(as.factor(ind_data$mass)))
+enr_day <- matrix(0, nrow = length(levels(as.factor(ind_data$ind))) , ncol = c(1))#
+daily.cost <-  matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2))#
+daily.cost[,1] <- c(100,500,1000,2000,4000,6000,10000)
+daily.cost
+daily.cost <-  matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),names = c("mass","energy"))
+daily.cost <-  matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),col.names = c("mass","energy"))
+daily.cost <-  matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),dim.names = c("mass","energy"))
+?matrix
+daily.cost <-  matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),colnames = c("mass","energy"))
+daily.cost <-  matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),colnames("mass","energy"))
+?matrix
+daily.cost <-  matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),dimnames = list("mass","energy"))
+daily.cost <-  matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),dimnames = list(,"mass","energy"))
+daily.cost <-  matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),dimnames = list(c(),c("mass","energy")))
+daily.cost
+dimnames = list(c(),c("mass","energy"))
+daily.cost <-  matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),dimnames = list(c(),c("mass","energy")))#
+daily.cost[,1] <- c(100,500,1000,2000,4000,6000,10000)
+daily.cost
+ind_data[ind_data$ind == 1, "mass"]
+ind_data[ind_data$ind == 1, "mass"][1]
+daily.cost[daily.cost$mass = ind_data[ind_data$ind == 1, "mass"][i],energy])
+daily.cost[daily.cost$mass = ind_data[ind_data$ind == 1, "mass"][1],energy])
+daily.cost[daily.cost$mass = c(ind_data[ind_data$ind == 1, "mass"][1]),energy])
+c(ind_data[ind_data$ind == 1, "mass"][1])
+daily.cost[daily.cost$mass = c(ind_data[ind_data$ind == 1, "mass"][1]),energy]
+daily.cost[daily.cost$mass = c(ind_data[ind_data$ind == 1, "mass"][1]),]
+daily.cost[daily.cost$mass = 100,]
+daily.cost[daily.cost$mass = "100",]
+daily.cost[daily.cost$mass == "100",]
+daily.cost[daily.cost$mass == 100,]
+daily.cost$mass
+daily.cost
+daily.cost$mass
+daily.cost[daily.cost$mass,]
+daily.cost[,"mass"]
+classdaily.cost
+daily.cost1 <- data.frame(daily.cost)
+daily.cost
+daily.cost[daily.cost$mass,]
+daily.cost[daily.cost$mass == 100,]
+daily.cost[daily.cost$mass == "100",]
+daily.cost
+daily.cost[daily.cost$mass == "100" ,]
+daily.cost <- as.data.frame(daily.cost)
+daily.cost[daily.cost$mass == "100" ,]
+daily.cost <-  as.data.frame(matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),dimnames = list(c(),c("mass","energy"))))#
+daily.cost[,1] <- c(100,500,1000,2000,4000,6000,10000)
+daily.cost[daily.cost$mass == "100" ,]
+daily.cost[daily.cost$mass = ind_data[ind_data$ind == 1, "mass"][i],energy]
+daily.cost[daily.cost$mass = ind_data[ind_data$ind == 1, "mass"][1],energy]
+daily.cost[daily.cost$mass == ind_data[ind_data$ind == 1, "mass"][1],energy]
+daily.cost[daily.cost$mass == ind_data[ind_data$ind == 1, "mass"][1],"energy"]
+enr_day <- matrix(0, nrow = length(levels(as.factor(ind_data$ind))) , ncol = c(1))#
+daily.cost <-  as.data.frame(matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),dimnames = list(c(),c("mass","energy"))))#
+daily.cost[,1] <- c(100,500,1000,2000,4000,6000,10000)#
+#to produce the average energy#
+for(i in 1:(length(ind_data[1,]))){#
+	enr_day[,i] <- sum(ind_data[ind_data$ind == i, "energy"]) - (length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 1, "mass"][1],"energy"])#
+}
+length(ind_data[1,])
+ind_data[1,]
+for(i in 1:(length(levels(as.factor(ind_data$ind))))){#
+	enr_day[,i] <- sum(ind_data[ind_data$ind == i, "energy"]) - (length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 1, "mass"][1],"energy"])#
+}
+(length(levels(as.factor(ind_data$ind))))
+enr_day[,14] <- sum(ind_data[ind_data$ind == 14, "energy"]) - (length(ind_data[ind_data$ind == 14, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 14, "mass"][1],"energy"])
+enr_day[,1] <- sum(ind_data[ind_data$ind == 1, "energy"]) - (length(ind_data[ind_data$ind == 1, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 1, "mass"][1],"energy"])
+enr_day
+sum(ind_data[ind_data$ind == 1, "energy"])
+sum(ind_data[ind_data$ind == 14, "energy"])
+sum(ind_data[ind_data$ind == 15, "energy"])
+(length(ind_data[ind_data$ind == 1, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 1, "mass"][1],"energy"])
+(length(ind_data[ind_data$ind == 14, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 14, "mass"][1],"energy"])
+(length(ind_data[ind_data$ind == 14, "energy"])
+)
+sum(length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 1, "mass"][1],"energy"])
+functions for t.rex scavanging model#
+#Kevin Healy 11 March 2014#
+fasting.ability <- function(mass,En.cost.per.day,kfat.energy = c(39.3*1000*1000))#
+	{#
+#
+		#kfat.energy <- 39.3*1000*1000 # this is j/kg of fat reserves#
+		Energy.in.reserves <- kfat.energy*0.075*(body.mass^1.19) #I'm not sure were this scaling equation comes from find it and include reference.#
+		fasting.abilty.days <- Energy.in.reserves/En.cost.per.day#
+		return(data.frame(Energy.in.reserves,fasting.abilty.days))#
+	}#
+#To scale area serched. This scaling is one of the talking points with john.#
+#
+area.searched <- function(mass, detection.distance, search.time =c(0.5), theropod.body.sizes = c(20,210,430,1400,6000),hip.hight = c(42,100,116,149,264),froude.no = c(0.25))#
+	{#
+#
+							speed.fr <- sqrt(froude.no*(hip.hight/100)*9.81) #hip.hiegth in meters#
+							speed.scal <- glm(log(speed.fr)~log(theropod.body.sizes))#
+							s.slop <- speed.scal$coefficients["log(theropod.body.sizes)"]#
+							s.int <-  exp(speed.scal$coefficients["(Intercept)"])#
+#
+							walking.speed <- (s.int*((mass)^s.slop))#
+#
+							#To get a search rate its given by detaction distance d by v.s in meters^2/second searched#
+							meter.scanned.per.sec <- 2*detection.distance*walking.speed #search rate in meters^squared per second#
+							daily.km2.search <- ((meter.scanned.per.sec*search.time*60*60*24)/(1000^2)) #area (km^2) searched in a day#
+#
+return(data.frame(walking.speed, meter.scanned.per.sec,daily.km2.search))#
+	}#
+#Using Graems model to calulate energy expenditor#
+gram.energy.exp <- function(mass, walking.speed, metabolic.type = c("ecto","endo","meso"), search.time = c(0.5))#
+{#
+	if(metabolic.type == "ecto")#
+		{#
+		resting.metabolic.rate <- 0.11*(mass^0.76) #baesed on reptiles#
+		Searching.energy.cost.W <- 10.3*walking.speed*(mass^0.64)#
+#
+		Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+		Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+		}#
+		else {#
+			if(metabolic.type == "endo")#
+				{#
+					resting.metabolic.rate <- 4.12*(mass^0.69) #Mammals from White et al 2009 (uses PGLS)#
+#
+					Searching.energy.cost.W <- 10.7*walking.speed*(mass^0.68)#
+#
+					Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+					Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+				}#
+				else {#
+					if(metabolic.type == "meso")#
+				{#
+					resting.metabolic.rate <- 0.0020*(mass^0.82) #baesed on new science paper#
+					Searching.energy.cost.W <- 10.7*walking.speed*(mass^0.68)#
+#
+					Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+					Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+				}#
+				}#
+			}#
+return(data.frame(resting.metabolic.rate, Searching.energy.cost.W, Tot.daily.energy.consumption.j))#
+}#
+#Using pontzers model to calulate energy expenditure#
+#
+pontz.energy.exp <- function(mass, walking.speed, est.type = c("hip","muscle"), hip.hight = c(42,100,116,149,264), V.musc = c(44.1), search.time = c(0.5))#
+{#
+	if(est.type == "hip")#
+		{#
+		resting.metabolic.rate <-0.0020*(mass^ 0.82) #baesed on OLS in science paper for all dinos#
+		#need an equation of mass hip higth scaling.#
+		cot.hip.scal <- glm(log(hip.hight)~log(theropod.body.sizes))#
+							hip.slop <- cot.hip.scal$coefficients["log(theropod.body.sizes)"]#
+							hip.int <-  exp(cot.hip.scal$coefficients["(Intercept)"])#
+#
+							cost.hip <- (hip.int*((mass)^hip.slop))#
+		cost.of.transport <-  90.284*(cost.hip^(-0.77)) #
+		Searching.energy.cost.W <-  (cost.of.transport*mass)*walking.speed#
+#
+		Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+		Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+		}#
+		else {#
+			if(est.type == "muscle")#
+				{#
+					resting.metabolic.rate <- 0.0020**(mass^0.82) #Mammals from White et al 2009 (uses PGLS)#
+					cost.of.transport <- (0.0029*(V.musc) + 0.0598)*20.1#
+					Searching.energy.cost.W <- (cost.of.transport*mass)*walking.speed #cost of whole animal to search in Watts#
+					Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+					Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+				}#
+			}#
+return(data.frame(resting.metabolic.rate, Searching.energy.cost.W, Tot.daily.energy.consumption.j))#
+}#
+#function to calulate the enrgy available in the envirnment.#
+#
+energy.available <- function(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(0), assimilation.effeciency = c(0.75), competativly.available = c(1), carcass.mass.density = c(4.38), number.day.carcass.available = c(7))#
+		{#
+		bone.mass.herbivors <-  0.065*(herbivor.size.bin^1.09)# from mammal scaling #
+		flesh.mass.herbivours <- herbivor.size.bin - bone.mass.herbivors#
+		bone.energy.herb <-  bone.mass.herbivors*bone.energy.content #energy in each size bim from bones#
+		flesh.energy.herb <-  flesh.mass.herbivours*flesh.energy.content #energy in each size bim from flesh#
+		carcass.energy.avail <- bone.energy.herb + flesh.energy.herb*percent.flesh.available #energy in each size bim from complet carcass#
+		per.individual.carcass.energy.avail <- carcass.energy.avail*assimilation.effeciency*competativly.available#
+		carcass.energy.avail.kg <- per.individual.carcass.energy.avail/herbivor.size.bin #energy per kg #
+#
+		energy.dens.km.j <- sum((carcass.mass.density*number.day.carcass.available)*(carcass.energy.avail.kg/length(herbivor.size.bin))) #density of energy avalable to t.rex uniformly spread.#
+		return(data.frame(energy.dens.km.j))#
+		}
+detection.distance <- c(500) # in meters
+search.time <- c(0.5) #amount of time searching
+bone.energy.content <- c(6700000) # in joules/kg#
+#
+flesh.energy.content <- c(7000000)#in joules/kg
+carcass.mass.density <- c(4.38) # kg/km#
+#
+froude.no = c(0.25) #0.25 is a slow walk 0.5 is the transition into running gait 1 is running.#
+#
+theropod.size.bin <- c(20.6,58.3,1123,5347) #theropod size bins from carbone can include other dino distributions such as dino park#
+#for dino park#
+#for#
+#
+herbivor.size.bin <- c(75,216,700,2500,5000,8500,25000) #herbivour size bins from carbone can include other dino distributions such as dino park#
+#
+assimilation.effeciency <- c(0.80*0.23) # amount of energy through assimilation
+competition <- c("absent") #whether to include compition or not. currenty very crudly coded as linear increase from 0% at lowest body size to 100% at max body size. "absent" if compitition is not to be included "present" if it is#
+#
+percent.flesh.available <- c(0.5) #how much flesh should be available, 0 if just a bone scavanger.#
+competativly.available <- c(1) #how much flesh should be available due to competition.
+searched <- area.searched(mass = mass, detection.distance = detection.distance, search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000))
+searched <- area.searched(mass = c(500,4000), detection.distance = detection.distance, search.time =c(0.5), hip.hight <- c(42,100,116,149,264),froude.no = c(0.25), theropod.body.sizes = c(20,210,430,1400,6000))
+searched
+daily.km2.search <- searched$daily.km2.search#
+walking.speed <- searched$walking.speed
+pontz.energy <- pontz.energy.exp(mass = c(500,4000), walking.speed = walking.speed, est.type = "hip", hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))
+pontz.energy <- pontz.energy.exp(mass = c(500,4000), walking.speed = walking.speed, est.type = "hip", hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5),theropod.body.sizes = c(20,210,430,1400,6000))
+pontz.energy <- pontz.energy.exp(mass = c(500,4000), walking.speed = walking.speed, est.type = "hip", hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))
+pontz.energy <- pontz.energy.exp(mass = c(500,4000), walking.speed = walking.speed, est.type = "hip", hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))
+Using pontzers model to calulate energy expenditure#
+#
+pontz.energy.exp <- function(mass, walking.speed, est.type = c("hip","muscle"), hip.hight = c(42,100,116,149,264), V.musc = c(44.1), search.time = c(0.5), theropod.body.sizes = c(20,210,430,1400,6000))#
+{#
+	if(est.type == "hip")#
+		{#
+		resting.metabolic.rate <-0.0020*(mass^ 0.82) #baesed on OLS in science paper for all dinos#
+		#need an equation of mass hip higth scaling.#
+		cot.hip.scal <- glm(log(hip.hight)~log(theropod.body.sizes))#
+							hip.slop <- cot.hip.scal$coefficients["log(theropod.body.sizes)"]#
+							hip.int <-  exp(cot.hip.scal$coefficients["(Intercept)"])#
+#
+							cost.hip <- (hip.int*((mass)^hip.slop))#
+		cost.of.transport <-  90.284*(cost.hip^(-0.77)) #
+		Searching.energy.cost.W <-  (cost.of.transport*mass)*walking.speed#
+#
+		Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+		Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+		}#
+		else {#
+			if(est.type == "muscle")#
+				{#
+					resting.metabolic.rate <- 0.0020**(mass^0.82) #Mammals from White et al 2009 (uses PGLS)#
+					cost.of.transport <- (0.0029*(V.musc) + 0.0598)*20.1#
+					Searching.energy.cost.W <- (cost.of.transport*mass)*walking.speed #cost of whole animal to search in Watts#
+					Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+					Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+				}#
+			}#
+return(data.frame(resting.metabolic.rate, Searching.energy.cost.W, Tot.daily.energy.consumption.j))#
+}#
+#function to calulate the enrgy available in the envirnment.#
+#
+energy.available <- function(bone.energy.content = c(6700000), flesh.energy.content = c(7000000), herbivor.size.bin = c(75,216,700,2500,5000,8500,25000), percent.flesh.available = c(0), assimilation.effeciency = c(0.75), competativly.available = c(1), carcass.mass.density = c(4.38), number.day.carcass.available = c(7))#
+		{#
+		bone.mass.herbivors <-  0.065*(herbivor.size.bin^1.09)# from mammal scaling #
+		flesh.mass.herbivours <- herbivor.size.bin - bone.mass.herbivors#
+		bone.energy.herb <-  bone.mass.herbivors*bone.energy.content #energy in each size bim from bones#
+		flesh.energy.herb <-  flesh.mass.herbivours*flesh.energy.content #energy in each size bim from flesh#
+		carcass.energy.avail <- bone.energy.herb + flesh.energy.herb*percent.flesh.available #energy in each size bim from complet carcass#
+		per.individual.carcass.energy.avail <- carcass.energy.avail*assimilation.effeciency*competativly.available#
+		carcass.energy.avail.kg <- per.individual.carcass.energy.avail/herbivor.size.bin #energy per kg #
+#
+		energy.dens.km.j <- sum((carcass.mass.density*number.day.carcass.available)*(carcass.energy.avail.kg/length(herbivor.size.bin))) #density of energy avalable to t.rex uniformly spread.#
+		return(data.frame(energy.dens.km.j))#
+		}
+pontz.energy <- pontz.energy.exp(mass = c(500,4000), walking.speed = walking.speed, est.type = "hip", hip.hight = hip.hight, V.musc = c(44.1), search.time = c(0.5))
+pontz.energy
+daily.cost[,1] <- c(100,500,1000,2000,4000,6000,10000)#
+daily.cost[,2] <- c(19243.828,84039.563,158562.583,299170.140,564464.120,818316.553,1306521.754)
+for(i in 1:(length(levels(as.factor(ind_data$ind))))){#
+	enr_day[,i] <- sum(ind_data[ind_data$ind == i, "energy"]) - sum(length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 1, "mass"][1],"energy"])#
+}
+sum(length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 1, "mass"][1],"energy"])
+ind_data[ind_data$ind == i, "mass"][1]
+ind_data[ind_data$ind == 1, "mass"][1]
+ind_data[ind_data$ind == 2, "mass"][1]
+sum(length(ind_data[ind_data$ind == 14, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 14, "mass"][1],"energy"])
+sum(length(ind_data[ind_data$ind == 4, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 4, "mass"][1],"energy"])
+sum(ind_data[ind_data$ind == 14, "energy"]) - sum(length(ind_data[ind_data$ind == 14, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 14, "mass"][1],"energy"])
+for(i in 1:(length(levels(as.factor(ind_data$ind))))){#
+	enr_day[,i] <- sum(ind_data[ind_data$ind == i, "energy"]) - sum(length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])#
+}
+enr_day[,i]
+enr_day[]
+sum(ind_data[ind_data$ind == 14, "energy"]) - sum(length(ind_data[ind_data$ind == 14, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 14, "mass"][1],"energy"])
+sum(ind_data[ind_data$ind == 1, "energy"]) - sum(length(ind_data[ind_data$ind == 1, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == 1, "mass"][1],"energy"])
+(length(levels(as.factor(ind_data$ind))))
+to get average#
+enr_day <- matrix(0, nrow = length(levels(as.factor(ind_data$ind))) , ncol = c(1))#
+daily.cost <-  as.data.frame(matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),dimnames = list(c(),c("mass","energy"))))#
+daily.cost[,1] <- c(100,500,1000,2000,4000,6000,10000)#
+daily.cost[,2] <- c(19243.828,84039.563,158562.583,299170.140,564464.120,818316.553,1306521.754) #remember these are in kilo joules#
+#to produce the average energy#
+for(i in 1:(length(levels(as.factor(ind_data$ind))))){#
+	enr_day[,i] <- sum(ind_data[ind_data$ind == i, "energy"]) - sum(length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])#
+}
+sum(ind_data[ind_data$ind == i, "energy"]) - sum(length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])
+sum(ind_data[ind_data$ind == i, "energy"]) - sum(length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])
+sum(ind_data[ind_data$ind == i, "energy"]) - sum(length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])
+sum(ind_data[ind_data$ind == i, "energy"]) - sum(length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])
+(length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])
+(length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])
+sum(length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])
+to produce the average energy#
+for(i in 1:(length(levels(as.factor(ind_data$ind))))){#
+	enr_day[i] <- sum(ind_data[ind_data$ind == i, "energy"]) - (length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])#
+}
+ind_data[ind_data$ind == i, "mass"][1],"energy"]
+ind_data[ind_data$ind == i, "mass"][1]
+to produce the average energy#
+for(i in 1:(length(levels(as.factor(ind_data$ind))))){#
+	enr_day[i,1] <- sum(ind_data[ind_data$ind == i, "energy"]) - (length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])#
+    enr_day[i,1] <- ind_data[ind_data$ind == i, "mass"][1]#
+}
+to produce the average energy#
+for(i in 1:(length(levels(as.factor(ind_data$ind))))){#
+	enr_day[i,1] <- sum(ind_data[ind_data$ind == i, "energy"]) - (length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])#
+    enr_day[i,1] <- ind_data[ind_data$ind == i, "mass"][1]#
+}
+to produce the average energy#
+for(i in 1:(length(levels(as.factor(ind_data$ind))))){#
+	enr_day[i,1] <- sum(ind_data[ind_data$ind == i, "energy"]) - (length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])#
+    enr_day[i,2] <- ind_data[ind_data$ind == i, "mass"][1]#
+}
+to get average#
+enr_day <- matrix(0, nrow = length(levels(as.factor(ind_data$ind))) , ncol = c(2))#
+daily.cost <-  as.data.frame(matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),dimnames = list(c(),c("mass","energy"))))#
+daily.cost[,1] <- c(100,500,1000,2000,4000,6000,10000)#
+daily.cost[,2] <- c(19243.828,84039.563,158562.583,299170.140,564464.120,818316.553,1306521.754) #remember these are in kilo joules#
+#to produce the average energy#
+for(i in 1:(length(levels(as.factor(ind_data$ind))))){#
+	enr_day[i,1] <- sum(ind_data[ind_data$ind == i, "energy"]) - (length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])#
+    enr_day[i,2] <- ind_data[ind_data$ind == i, "mass"][1]#
+}
+dimnames = list(c(),c("mass","energy")))
+dimnames = list(c(),c("mass","energy"))
+to get average#
+enr_day <- matrix(0, nrow = length(levels(as.factor(ind_data$ind))) , ncol = c(2), dimnames = list(c(),c("mass","energy")))#
+daily.cost <-  as.data.frame(matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),dimnames = list(c(),c("mass","energy"))))#
+daily.cost[,1] <- c(100,500,1000,2000,4000,6000,10000)#
+daily.cost[,2] <- c(19243.828,84039.563,158562.583,299170.140,564464.120,818316.553,1306521.754) #remember these are in kilo joules#
+#to produce the average energy#
+for(i in 1:(length(levels(as.factor(ind_data$ind))))){#
+	enr_day[i,1] <- sum(ind_data[ind_data$ind == i, "energy"]) - (length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])#
+    enr_day[i,2] <- ind_data[ind_data$ind == i, "mass"][1]#
+}
+enr_day
+plot(energy~mass)
+plot(enr_day $energy~ enr_day $mass)
+plot(enr_day$energy~ enr_day$mass)
+to get average#
+enr_day <- as.data.frame(matrix(0, nrow = length(levels(as.factor(ind_data$ind))) , ncol = c(2), dimnames = list(c(),c("mass","energy"))))#
+daily.cost <-  as.data.frame(matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),dimnames = list(c(),c("mass","energy"))))#
+daily.cost[,1] <- c(100,500,1000,2000,4000,6000,10000)#
+daily.cost[,2] <- c(19243.828,84039.563,158562.583,299170.140,564464.120,818316.553,1306521.754) #remember these are in kilo joules#
+#to produce the average energy#
+for(i in 1:(length(levels(as.factor(ind_data$ind))))){#
+	enr_day[i,1] <- sum(ind_data[ind_data$ind == i, "energy"]) - (length(ind_data[ind_data$ind == i, "energy"])*daily.cost[daily.cost$mass == ind_data[ind_data$ind == i, "mass"][1],"energy"])#
+    enr_day[i,2] <- ind_data[ind_data$ind == i, "mass"][1]#
+}
+enr_day
+plot(enr_day$energy~ enr_day$mass)
+plot(enr_day$energy ~ enr_day$mass)
+plot(enr_day[,2] ~ enr_day[,1])
+plot(enr_day[,2] ~ enr_day[,1])
+plot(enr_day[,1] ~ enr_day[,2])
+plot(enr_day[,1] ~ enr_day[,2],btw = n)
+plot(enr_day[,1] ~ enr_day[,2],lty = n)
+plot(enr_day[,1] ~ enr_day[,2],bty = n)
+plot(enr_day[,1] ~ enr_day[,2],bty = l)
+plot(enr_day[,1] ~ enr_day[,2],bty = "l")
+abline(0,0)
+plot(enr_day[,1] ~ enr_day[,2],bty = "l")
+abline(0,0, lw = "2")
+abline(0,0, lw = "2", lt = "2")
+plot(enr_day[,1] ~ enr_day[,2],bty = "l")
+abline(0,0, lw = "2", lt = 2)
+plot(enr_day[,1] ~ enr_day[,2],bty = "l")
+plot(enr_day[,1] ~ enr_day[,2],bty = "l")
+?ong
+?png
+png(file = "myplot.png", bg = "transparent")
+plot(enr_day[,1] ~ enr_day[,2],bty = "l")
+dev.off()
