@@ -17,7 +17,7 @@ fasting.ability <- function(mass,En.cost.per.day,kfat.energy = c(39.3*1000*1000)
 
 #To scale area serched. This scaling is one of the talking points with john.
 
-area.searched <- function(mass, detection.distance, search.time =c(0.5), theropod.body.sizes = c(20,210,430,1400,6000),hip.hight = c(42,100,116,149,264),froude.no = c(0.25))
+area.searched <- function(mass, detection.distance, search.time =c(0.5), theropod.body.sizes = c(0.25,1.2,3,20,20,210,430,1400,6000),hip.hight = c(13,24,15,44,42,100,116,149,264),froude.no = c(0.25))
 	{
 
 							speed.fr <- sqrt(froude.no*(hip.hight/100)*9.81) #hip.hiegth in meters
