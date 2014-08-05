@@ -1,0 +1,58 @@
+hip.hight = c(13,24,15,44,42,100,116,149,264)
+theropod.body.sizes = c(0.25,1.2,3,20,20,210,430,1400,6000)
+plot(hip.hight~theropod.body.sizes)
+plot(log(hip.hight)~log(theropod.body.sizes))
+ff <- glm(log(hip.hight)~log(theropod.body.sizes))
+summary(ff)
+ff <- lm(log(hip.hight)~log(theropod.body.sizes))
+summary(ff)
+area.searched <- function(mass, detection.distance, search.time =c(0.5), theropod.body.sizes = c(0.25,1.2,3,20,20,210,430,1400,6000),hip.hight = c(13,24,15,44,42,100,116,149,264),froude.no = c(0.25))#
+	{#
+#
+							speed.fr <- sqrt(froude.no*(hip.hight/100)*9.81) #hip.hiegth in meters#
+							speed.scal <- glm(log(speed.fr)~log(theropod.body.sizes))#
+							s.slop <- speed.scal$coefficients["log(theropod.body.sizes)"]#
+							s.int <-  exp(speed.scal$coefficients["(Intercept)"])#
+#
+							walking.speed <- (s.int*((mass)^s.slop))#
+#
+							#To get a search rate its given by detaction distance d by v.s in meters^2/second searched#
+							meter.scanned.per.sec <- 2*detection.distance*walking.speed #search rate in meters^squared per second#
+							daily.km2.search <- ((meter.scanned.per.sec*search.time*60*60*24)/(1000^2)) #area (km^2) searched in a day#
+#
+return(data.frame(walking.speed, meter.scanned.per.sec,daily.km2.search))#
+	}#
+#Using Graems model to calulate energy expenditor#
+gram.energy.exp <- function(mass, walking.speed, metabolic.type = c("ecto","endo","meso"), search.time = c(0.5))#
+{#
+	if(metabolic.type == "ecto")#
+		{#
+		resting.metabolic.rate <- 0.11*(mass^0.76) #baesed on reptiles#
+		Searching.energy.cost.W <- 10.3*walking.speed*(mass^0.64)#
+#
+		Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+		Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+		}#
+		else {#
+			if(metabolic.type == "endo")#
+				{#
+					resting.metabolic.rate <- 4.12*(mass^0.69) #Mammals from White et al 2009 (uses PGLS)#
+#
+					Searching.energy.cost.W <- 10.7*walking.speed*(mass^0.68)#
+#
+					Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+					Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+				}#
+				else {#
+					if(metabolic.type == "meso")#
+				{#
+					resting.metabolic.rate <- 0.0020*(mass^0.82) #baesed on new science paper#
+					Searching.energy.cost.W <- 10.7*walking.speed*(mass^0.68)#
+#
+					Tot.energy.consumption.watts <- resting.metabolic.rate + search.time*Searching.energy.cost.W#
+					Tot.daily.energy.consumption.j <-  Tot.energy.consumption.watts*60*60*24 #joules per day#
+				}#
+				}#
+			}#
+return(data.frame(resting.metabolic.rate, Searching.energy.cost.W, Tot.daily.energy.consumption.j))#
+}
