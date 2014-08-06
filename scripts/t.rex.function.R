@@ -83,7 +83,7 @@ return(data.frame(resting.metabolic.rate, Searching.energy.cost.W, Tot.daily.ene
 
 #Using pontzers model to calulate energy expenditure
 
-pontz.energy.exp <- function(mass, walking.speed, est.type = c("hip","muscle"), hip.hight = c(42,100,116,149,264), V.musc = c(44.1), search.time = c(0.5), theropod.body.sizes = c(20,210,430,1400,6000))
+pontz.energy.exp <- function(mass, walking.speed, est.type = c("hip","muscle"), hip.hight = c(13,24,15,44,42,100,116,149,264), V.musc = c(44.1), search.time = c(0.5), theropod.body.sizes = c(0.25,1.2,3,20,20,210,430,1400,6000))
 {
 	if(est.type == "hip")
 		{
