@@ -10,8 +10,8 @@ ind_data <- read.csv("full_gut_full_comp_master.csv",sep=",", header = T)
 #to get average
 enr_day <- as.data.frame(matrix(0, nrow = length(levels(as.factor(ind_data$ind))) , ncol = c(3), dimnames = list(c(),c("mass","energy","prop"))))
 daily.cost <-  as.data.frame(matrix(0, nrow = length(levels(as.factor(ind_data$mass))) , ncol = c(2),dimnames = list(c(),c("mass","energy"))))
-daily.cost[,1] <- c(100,500,1000,2000,4000,6000,10000)
-daily.cost[,2] <- c(19243.828,84039.563,158562.583,299170.140,564464.120,818316.553,1306521.754) #remember these are in kilo joules
+daily.cost[,1] <- c(1.2,20,100,210,430,1000,1400,4000,6000,10000)
+daily.cost[,2] <- c(333.7408,4408.2865,19296.3658,38112.4977,73552.3399,159529.3573,217217.0865, 569053.1521, 825456.5600, 1318902.0939) #remember these are in kilo joules
 
 
 #to produce the average energy
